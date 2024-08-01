@@ -117,6 +117,21 @@ if __name__ == "__main__":
     # Loading trained model checkpoint
     config = Config
     model = TinyGPT(config)
+
+    # dataloader = get_dataloader("Data/Sherlock Holmes.txt")
+    # config = Config(
+    #     vocab_size=Tokenizer.vocab_size(),
+    #     n_layers=4,
+    #     n_heads=4,
+    #     d_model=256,
+    #     d_ff=1024,
+    #     max_len=1024,
+    #     dropout=0.1
+    # )
+    # model = TinyGPT(config).to(device)
+    # model.train(epochs=10, dataloader=dataloader, optimizer="adam", lr=1e-3, verbose=True)
+    # torch.save(model.state_dict(), "Data/TinyGPT.tar")
+
     model.load_state_dict(torch.load("Data/TinyGPT.tar", map_location=device))
     response = model.generate("Sherlock Holmes", max_length=100, temperature=0.5)
     """
