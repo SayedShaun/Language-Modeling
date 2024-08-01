@@ -7,10 +7,8 @@ Welcome to TinyGPT, a fully-customizable Language Model built from scratch in Py
     # Generate text
     model.generate("Sherlock Holmes", max_length=100, temperature=0.5)
     """
-    Sherlock Holmes, I had been out. Then very carelessly scrap my own with a sens, 
-    and the chamber which consisted of the home-crep to me over a strong and he stood, 
-    even the man of the drug a strong with a journey to see it is of the room." 
-    "The name is the paper was the matter of the mask to addressing his armchair, 
+    Sherlock Holmes, I had been out. Then very carelessly scrap my own with a sens, and the chamber which consisted of the home-crep to me over a strong and he stood, 
+    even the man of the drug a strong with a journey to see it is of the room." "The name is the paper was the matter of the mask to addressing his armchair, 
     and a seat to see, and looked his agent a length of the deep harsh voice and a man of a capitald
     """
 
