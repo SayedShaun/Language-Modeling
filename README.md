@@ -9,6 +9,7 @@ config = Config
 model = TinyGPT(config)
 
 dataloader = get_dataloader("Data/Sherlock Holmes.txt")
+# Change the config as needed
 config = Config(
     vocab_size=Tokenizer.vocab_size(),
     n_layers=4,
