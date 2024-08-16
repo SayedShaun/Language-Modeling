@@ -142,7 +142,7 @@ class Block(nn.Module):
         return self.norm_2(output + attention)
     
 
-# Tensorflow Modules
+# Tensorflow Modules (These Modules require Keras >= 3.0.0, so make sure you install Keras >= 3.0.0)
 class TFLinear(K.Layer):
     def __init__(self, in_size:int, out_size:int, bias:bool=True)->None:
         super(TFLinear, self).__init__()
