@@ -144,12 +144,15 @@ class Block(nn.Module):
 
 # Tensorflow Modules
 class TFLinear(K.Layer):
-    def __init__(self, in_size:int, out_size:int)->None:
+    def __init__(self, in_size:int, out_size:int, bias:bool=True)->None:
         super(TFLinear, self).__init__()
+        self.bias = bias
         self.W = K.Variable(K.random.uniform((out_size, in_size)))
         self.b = K.Variable(K.random.normal((out_size, )))
 
     def call(self, X:tf.Tensor)->tf.Tensor:
+        if self.bias == False:
+            return (X @ K.ops.transpose(self.W, (1, 0)))
         return (X @ K.ops.transpose(self.W, (1, 0)) + self.b)
 
 
@@ -191,13 +194,13 @@ class TFLayerNorm(K.Layer):
 
 
 class TFMultiHeadAttention(K.Layer):
-    def __init__(self, d_model:int, n_heads:int)->None:
+    def __init__(self, config:Config)->None:
         super(TFMultiHeadAttention, self).__init__()
         self.config = Config
-        self.q_proj = TFLinear(d_model, d_model)
-        self.k_proj = TFLinear(d_model, d_model)
-        self.v_proj = TFLinear(d_model, d_model)
-        self.o_proj = TFLinear(d_model, d_model)
+        self.q_proj = TFLinear(config.d_model, config.d_model)
+        self.k_proj = TFLinear(config.d_model, config.d_model)
+        self.v_proj = TFLinear(config.d_model, config.d_model)
+        self.o_proj = TFLinear(config.d_model, config.d_model)
 
     def call(self, Q:tf.Tensor, K:tf.Tensor, V:tf.Tensor, mask:tf.Tensor=None)->tf.Tensor:
         B, T, C = Q.shape
