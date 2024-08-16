@@ -6,6 +6,10 @@ from torch import nn, Tensor
 from dataloader import Tokenizer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Require Tensorflow >= 2.16 and Keras >= 3.0.0
+import tensorflow as tf
+from tensorflow import keras as K
+
 
 @dataclass
 class Config:
@@ -136,6 +140,113 @@ class Block(nn.Module):
         attention = self.norm_1(attention + X)
         output = self.mlp(attention)
         return self.norm_2(output + attention)
+    
+
+# Tensorflow Modules
+class TFLinear(K.Layer):
+    def __init__(self, in_size:int, out_size:int)->None:
+        super(TFLinear, self).__init__()
+        self.W = K.Variable(K.random.uniform((out_size, in_size)))
+        self.b = K.Variable(K.random.normal((out_size, )))
+
+    def call(self, X:tf.Tensor)->tf.Tensor:
+        return (X @ K.ops.transpose(self.W, (1, 0)) + self.b)
+
+
+class TFEmbedding(K.Layer):
+    def __init__(self, vocab_size:int, embed_dim:int)->None:
+        super(TFEmbedding, self).__init__()
+        self.W = K.Variable(K.random.normal((vocab_size, embed_dim)))
+
+    def call(self, X:tf.Tensor)->tf.Tensor:
+        embeddings = tf.gather(self.W, X)
+        return embeddings
+
+
+class TFPositionalEncoding(K.Layer):
+    def __init__(self, vocab_size:int, embed_dim:int, max_len:int)->None:
+        super(TFPositionalEncoding, self).__init__()
+        self.token_embeddings = TFEmbedding(vocab_size, embed_dim)
+        self.pos_embeddings = TFEmbedding(max_len, embed_dim)
+
+    def call(self, X:tf.Tensor)->tf.Tensor:
+        t_embedding = self.token_embeddings(X)
+        position = tf.range(0, X.shape[1], dtype=tf.int32)
+        p_embedding = self.pos_embeddings(position)
+        embeddings = t_embedding + p_embedding
+        return embeddings
+
+
+class TFLayerNorm(K.Layer):
+    def __init__(self, d_model:int, epsilon:float=1e-5)->None:
+        super(TFLayerNorm, self).__init__()
+        self.epsilon = epsilon
+        self.gamma = K.Variable(K.ops.ones((d_model, )))
+        self.beta = K.Variable(K.ops.zeros((d_model, )))
+
+    def call(self, X:tf.Tensor)->tf.Tensor:
+        mean = K.ops.mean(X, axis=-1, keepdims=True)
+        var = K.ops.mean(K.ops.square(X - mean), axis=-1, keepdims=True)
+        return self.gamma * (X - mean) / K.ops.sqrt(var + self.epsilon) + self.beta
+
+
+class TFMultiHeadAttention(K.Layer):
+    def __init__(self, d_model:int, n_heads:int)->None:
+        super(TFMultiHeadAttention, self).__init__()
+        self.config = Config
+        self.q_proj = TFLinear(d_model, d_model)
+        self.k_proj = TFLinear(d_model, d_model)
+        self.v_proj = TFLinear(d_model, d_model)
+        self.o_proj = TFLinear(d_model, d_model)
+
+    def call(self, Q:tf.Tensor, K:tf.Tensor, V:tf.Tensor, mask:tf.Tensor=None)->tf.Tensor:
+        B, T, C = Q.shape
+        Q, K, V = self.q_proj(Q), self.k_proj(K), self.v_proj(V)
+        Q = tf.reshape(Q, (B, T, self.config.n_heads, self.config.head_dim))
+        K = tf.reshape(K, (B, T, self.config.n_heads, self.config.head_dim))
+        V = tf.reshape(V, (B, T, self.config.n_heads, self.config.head_dim))
+        Q = tf.transpose(Q, (0, 2, 1, 3))
+        K = tf.transpose(K, (0, 2, 1, 3))
+        V = tf.transpose(V, (0, 2, 1, 3))
+
+        score = Q @ tf.transpose(K, (0, 1, 3, 2)) / (self.head_size ** 0.5)
+        if mask is not None:
+            score = K.ops.where(mask, score, -1e9)
+        weights = tf.nn.softmax(score, axis=-1)
+        attn_output = weights @ V
+        attn_output = tf.transpose(attn_output, (0, 2, 1, 3))
+        attn_output = tf.reshape(attn_output, (B, T, C))
+        return self.o_proj(attn_output)
+
+
+class TFMLP(K.Layer):
+    def __init__(self, d_model:int, d_ff:int, dropout:float)->None:
+        super(TFMLP, self).__init__()
+        self.fc1 = TFLinear(d_model, d_ff)
+        self.fc2 = TFLinear(d_ff, d_model)
+        self.dropout = K.layers.Dropout(dropout)
+
+    def call(self, X:tf.Tensor)->tf.Tensor:
+        x = tf.nn.gelu(self.fc1(X))
+        return self.fc2(self.dropout(x))
+
+
+class TFEncoderBlock(K.Layer):
+    def __init__(self, config: Config)->None:
+        super(TFEncoderBlock, self).__init__()
+        self.norm1 = TFLayerNorm(config.d_model)
+        self.norm2 = TFLayerNorm(config.d_model)
+        self.mha = TFMultiHeadAttention(config.d_model, config.n_heads)
+        self.mlp = TFMLP(config.d_model, config.d_ff)
+        self.dropout = K.layers.Dropout(config.dropout)
+
+    def call(self, X:tf.Tensor, mask:tf.Tensor=None)->tf.Tensor:
+        x = self.norm1(X)
+        x = self.mha(x, x, x, mask)
+        x = X + self.dropout(x)
+        y = self.norm2(x)
+        y = self.mlp(y)
+        return x + self.dropout(y)
     
 
 if __name__ == "__main__":
