@@ -1,2 +1,2 @@
-# Ignore __pycache__
-**/*.pyc
+__pycache__
+.idea
