@@ -3,3 +3,4 @@ numpy
 sentencepiece
 torch
 tqdm
+tensorflow >= 2.16.0
